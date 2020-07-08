@@ -117,19 +117,18 @@
         // 绑定位置缓冲区
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
-        // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
-        var size = 2;          // 2 components per iteration
-        var type = gl.FLOAT;   // the data is 32bit floats
-        var normalize = false; // don't normalize the data
-        var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
-        var offset = 0;        // start at the beginning of the buffer
-        gl.vertexAttribPointer(
-            positionAttributeLocation, size, type, normalize, stride, offset);
+        // 配置数据读取规则
+        let size = 2;          // 2 components per iteration
+        let type = gl.FLOAT;   // the data is 32bit floats
+        let normalize = false; // don't normalize the data
+        let stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+        let offset = 0;        // start at the beginning of the buffer
+        gl.vertexAttribPointer( positionAttributeLocation, size, type, normalize, stride, offset );
 
-        // draw
-        var primitiveType = gl.TRIANGLES;
-        var offset = 0;
-        var count = 3;
+        // 绘制
+        let primitiveType = gl.TRIANGLES;
+        let count = 3;
+        offset = 0;
         gl.drawArrays(primitiveType, offset, count);
     }
 
