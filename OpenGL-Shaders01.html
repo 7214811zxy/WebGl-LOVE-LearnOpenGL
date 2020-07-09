@@ -17,20 +17,19 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<script  id="vertex-shader-2d" type="webgl">
-  attribute vec4 a_position;
+<script  id="vertex-shader-2d" type="webgl">#version 300 es
+  in vec2 a_position;
 
   void main() {
-    gl_Position = a_position;
+    gl_Position = vec4(a_position, 0.0, 1.0);
   }
 </script>
-<script  id="fragment-shader-2d" type="webgl">
+<script  id="fragment-shader-2d" type="webgl">#version 300 es
   precision mediump float;
 
-  uniform vec4 tri_color;
-
+  out vec4 outColor;
   void main() {
-    gl_FragColor = tri_color;
+    outColor = vec4(1.0, 0.5, 0.2, 1.0);
   }
 
 </script>
@@ -68,7 +67,7 @@
     function main() {
         // Get A WebGL context
         let canvas = document.querySelector("#c");
-        let gl = canvas.getContext("webgl");
+        let gl = canvas.getContext("webgl2");
         if (!gl) {
             return;
         }
@@ -84,40 +83,19 @@
 
         // 查询a_position的属性位置
         let positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-        let colorUniformLocation = gl.getUniformLocation(program, "tri_color");
 
-        // 创建位置缓存区
-        let positionBuffer = gl.createBuffer();
-
-        // 绑定数据缓存区
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-
-        // 将CPU数据传递给GPU
+        // CPU中的数据
         let positions = [
-            -0.25, -0.5,
-            0.0, -0.5,
-            0.0,  0.5,
-
-            0.0, 0.5,
-            -0.25, 0.5,
-            -0.25, -0.5,
-
-            0.0, 0.5,
-            0.25, 0.5,
-            0.0, 0.3,
-
-            0.25, 0.5,
-            0.25, 0.3,
-            0.0, 0.3,
-
-            0.0, 0.1,
-            0.25, 0.1,
-            0.0, 0.0,
-
-            0.0, 0.0,
-            0.25, 0.0,
-            0.25, 0.1
+            -0.5, -0.5,
+            0.5, -0.5,
+            0.0,  0.5
         ];
+        // 初始化一个缓冲区对象，即VBO。OpenGL中每个缓冲区对象都具有一个唯一ID，webgl中此ID似乎是不可访问的。
+        let positionBuffer = gl.createBuffer();
+        // 设定缓冲区对象的类型。除ARRAY_BUFFER外，还有ELEMENT_ARRAY_BUFFER、COPY_READ_BUFFER等
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        // 至此为止，后续进行的任何buffer调用和配置都只对positionBuffer生效。
+        // 使用bufferData方法 将储存在CPU中的数据导入GPU中
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
         // ————————————————————————————————————————Render————————————————————————————————————————
@@ -140,18 +118,17 @@
         // 绑定位置缓冲区
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
-        // 配置数据读取规则
+        // 配置顶点属性
         let size = 2;          // 2 components per iteration
         let type = gl.FLOAT;   // the data is 32bit floats
         let normalize = false; // don't normalize the data
         let stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
         let offset = 0;        // start at the beginning of the buffer
         gl.vertexAttribPointer( positionAttributeLocation, size, type, normalize, stride, offset );
-        gl.uniform4f(colorUniformLocation, Math.random(), Math.random(), Math.random(), 1);
 
         // 绘制
         let primitiveType = gl.TRIANGLES;
-        let count = 18;
+        let count = 3;
         offset = 0;
         gl.drawArrays(primitiveType, offset, count);
     }

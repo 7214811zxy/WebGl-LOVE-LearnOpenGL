@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>1. HelloWorld</title>
+    <style>
+        canvas {
+            width: 800px;
+            height: 600px;
+            border: 1px solid black;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script  id="vertex-shader-2d" type="webgl">
+  attribute vec4 a_position;
+
+  void main() {
+    gl_Position = a_position;
+  }
+</script>
+<script  id="fragment-shader-2d" type="webgl">
+  precision mediump float;
+
+  void main() {
+    gl_FragColor = vec4(1.0, 0.5, 0.2, 1.0);
+  }
+
+</script>
+<script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+<script>
+    // 创建一个着色器
+    function createShader(gl, type, source) {
+        let shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        let success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+        if (success) {
+            return shader;
+        }
+
+        console.log(gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+    }
+
+    // 连接顶点和片元着色器程序
+    function createProgram(gl, vertexShader, fragmentShader) {
+        let program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        let success = gl.getProgramParameter(program, gl.LINK_STATUS);
+        if (success) {
+            return program;
+        }
+
+        console.log(gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+    }
+
+    function main() {
+        // Get A WebGL context
+        let canvas = document.querySelector("#c");
+        let gl = canvas.getContext("webgl");
+        if (!gl) {
+            return;
+        }
+
+        // 加载GLSL代码
+        let vertexShaderSource = document.querySelector("#vertex-shader-2d").text;
+        let fragmentShaderSource = document.querySelector("#fragment-shader-2d").text;
+
+        // 创建顶点和片元着色器 生成着色程序
+        let vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+        let fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+        let program = createProgram(gl, vertexShader, fragmentShader);
+
+        // 查询a_position的属性位置
+        let positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+
+        // 创建位置缓存区
+        let positionBuffer = gl.createBuffer();
+
+        // 绑定数据缓存区
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+        // 将CPU数据传递给GPU
+        let positions = [
+            -0.5, -0.5,
+            0.5, -0.5,
+            0.0,  0.5
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+        // ————————————————————————————————————————Render————————————————————————————————————————
+        // canvas Resize
+        webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+        // 将clip Space转换为Screen Space
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+        // 设置清除色
+        gl.clearColor(0.2, 0.3, 0.3, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // 传入GLSL程序
+        gl.useProgram(program);
+
+        // 启用0属性
+        gl.enableVertexAttribArray(positionAttributeLocation);
+
+        // 绑定位置缓冲区
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+        // 配置数据读取规则
+        let size = 2;          // 2 components per iteration
+        let type = gl.FLOAT;   // the data is 32bit floats
+        let normalize = false; // don't normalize the data
+        let stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+        let offset = 0;        // start at the beginning of the buffer
+        gl.vertexAttribPointer( positionAttributeLocation, size, type, normalize, stride, offset );
+
+        // 绘制
+        let primitiveType = gl.TRIANGLES;
+        let count = 3;
+        offset = 0;
+        gl.drawArrays(primitiveType, offset, count);
+    }
+
+    main();
+
+</script>
+</body>
+</html>
