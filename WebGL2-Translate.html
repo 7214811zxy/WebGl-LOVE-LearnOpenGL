@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>矩阵应用 - 旋转</title>
+    <title>矩阵应用 - 平移</title>
     <style>
         body {
             margin: 0;
@@ -30,7 +30,8 @@
     <canvas id="canvas"></canvas>
     <div id="uiContainer" style="margin-left: 10px">
         <div id="ui">
-            <div id="angle"></div>
+            <div id="x"></div>
+            <div id="y"></div>
         </div>
     </div>
 </div>
@@ -39,22 +40,21 @@
 <script src="https://webgl2fundamentals.org/webgl/resources/webgl-lessons-ui.js"></script>
 <script  id="vertex-shader-2d" type="x-shader/x-vertex">#version 300 es
 
-in vec3 a_position;
-uniform vec2 u_resolution;
-uniform mat3 u_rotationMatrix;
+    in vec3 a_position;
+    uniform vec2 u_resolution;
+    uniform mat3 u_tranMatrix;
 
-void main() {
-    gl_Position = vec4( u_rotationMatrix * a_position, 1.0);
-}
+    void main() {
+        gl_Position = vec4( u_tranMatrix * a_position, 1.0);
+    }
 </script>
 <script  id="fragment-shader-2d" type="x-shader/x-fragment">#version 300 es
-precision highp float;
-
-uniform vec4 u_color;
-out vec4 outColor;
-void main() {
-    outColor = u_color;
-}
+    precision highp float;
+    uniform vec4 u_color;
+    out vec4 outColor;
+    void main() {
+        outColor = u_color;
+    }
 
 </script>
 <script>
@@ -71,27 +71,27 @@ void main() {
             new Float32Array([
                 // 竖
                 -0.25, -0.5,  1.0,
-                0.0,  -0.5,  1.0,
-                0.0,   0.5,  1.0,
-                0.0,   0.5,  1.0,
+                 0.0,  -0.5,  1.0,
+                 0.0,   0.5,  1.0,
+                 0.0,   0.5,  1.0,
                 -0.25,  0.5,  1.0,
                 -0.25, -0.5,  1.0,
-                //
-                // // 长横
-                // 0.0,   0.5,  1.0,
-                // 0.25,  0.5,  1.0,
-                // 0.0,   0.3,  1.0,
-                // 0.25,  0.5,  1.0,
-                // 0.25,  0.3,  1.0,
-                // 0.0,   0.3,  1.0,
-                //
-                // // 短横
-                // 0.0,   0.1,  1.0,
-                // 0.25,  0.1,  1.0,
-                // 0.0,   0.0,  1.0,
-                // 0.0,   0.0,  1.0,
-                // 0.25,  0.0,  1.0,
-                // 0.25,  0.1,  1.0
+
+                // 长横
+                 0.0,   0.5,  1.0,
+                 0.25,  0.5,  1.0,
+                 0.0,   0.3,  1.0,
+                 0.25,  0.5,  1.0,
+                 0.25,  0.3,  1.0,
+                 0.0,   0.3,  1.0,
+
+                // 短横
+                 0.0,   0.1,  1.0,
+                 0.25,  0.1,  1.0,
+                 0.0,   0.0,  1.0,
+                 0.0,   0.0,  1.0,
+                 0.25,  0.0,  1.0,
+                 0.25,  0.1,  1.0
             ]),
             gl.STATIC_DRAW);
     }
@@ -120,6 +120,12 @@ void main() {
 
         return arrayDecode
     }
+    let testMatrix = [
+        1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.3, 0.5, 1.0
+    ];
+    console.log( transpose( testMatrix, 3, 3 ) );
 
     function main() {
         // Get A WebGL context
@@ -137,7 +143,7 @@ void main() {
         // 获取Uniform位置
         let resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution");
         let colorLocation = gl.getUniformLocation(program, "u_color");
-        let rotationMatrixLocation = gl.getUniformLocation(program, "u_rotationMatrix");
+        let transMatrixLocation = gl.getUniformLocation(program, "u_tranMatrix");
 
         // 创建VBO和VAO
         let positionBuffer = gl.createBuffer();
@@ -151,6 +157,7 @@ void main() {
         gl.vertexAttribPointer( positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 
         // Uniform在CPU中的变量
+        let [ tx, ty ] = [ 0, 0 ];
         // 注意！Shader中似乎是按列读入矩阵数据的，即v = [x, y, z]在shader中表示列向量
         //
         //   | 1, 2, 3, |                               | 1, 4, 7, |
@@ -158,12 +165,11 @@ void main() {
         //   | 7, 8, 9  |                               | 3, 6, 9, |
         //
         let matrix = [
-            1.0, 0.0, 0.0,
-            0.0, 1.0, 0.0,
+            1.0, 0.0, tx,
+            0.0, 1.0, ty,
             0.0, 0.0, 1.0
         ];
         let color = [Math.random(), Math.random(), Math.random(), 1];
-        let angle = 0;
 
         drawScene();
 
@@ -183,26 +189,31 @@ void main() {
             // 设定Uniform
             gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
             gl.uniform4fv(colorLocation, color);
-            gl.uniformMatrix3fv( rotationMatrixLocation, false, matrix );
+            gl.uniformMatrix3fv( transMatrixLocation, false, matrix );
 
             // 绘制几何.
             let primitiveType = gl.TRIANGLES;
             let offset = 0;
-            let count = 6;
+            let count = 18;
             gl.drawArrays(primitiveType, offset, count);
         }
         // 设置UI.
-        webglLessonsUI.setupSlider("#angle", {value: angle, slide: updateRotation(), min: 0, max: 360 });
-        function updateRotation() {
+        webglLessonsUI.setupSlider("#x", {value: tx, slide: updatePosition('x'), min: -400.0, max: 400.0 });
+        webglLessonsUI.setupSlider("#y", {value: ty, slide: updatePosition('y'), min: -300.0, max: 300.0 });
+        function updatePosition(index) {
             return function(event, ui) {
-                let rad = ( ui.value / 180.0 ) * Math.PI;
+                if( index === 'x' ){
+                    tx = ui.value / 400.0;
+                }
+                if( index === 'y' ){
+                    ty = ui.value / 300.0;
+                }
                 matrix = [
-                     Math.cos(rad),      Math.sin(rad), 0.0,
-                    -Math.sin(rad),      Math.cos(rad), 0.0,
-                     0.0,                0.0,           1.0
+                    1.0, 0.0, tx,
+                    0.0, 1.0, ty,
+                    0.0, 0.0, 1.0
                 ];
                 matrix = transpose( matrix, 3, 3 );
-                console.log(matrix);
                 drawScene();
             };
         }
