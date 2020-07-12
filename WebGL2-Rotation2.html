@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>矩阵应用 - 旋转</title>
+    <style>
+        body {
+            margin: 0;
+        }
+        canvas {
+            width: 800px;
+            height: 600px;
+            border: 1px solid black;
+        }
+        .root {
+            display: flex;
+            width: 100%;
+            justify-content: center;
+            margin-top: 100px;
+        }
+        .note {
+            display: flex;
+            width: 100%;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+<div class="root">
+    <canvas id="canvas"></canvas>
+    <div id="uiContainer" style="margin-left: 10px">
+        <div id="ui">
+            <div id="angle"></div>
+        </div>
+    </div>
+</div>
+<div class="note"></div>
+<script src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script>
+<script src="https://webgl2fundamentals.org/webgl/resources/webgl-lessons-ui.js"></script>
+<script  id="vertex-shader-2d-inscreen" type="x-shader/x-vertex">#version 300 es
+
+in vec2 a_position;
+
+uniform vec2 u_resolution;
+uniform mat3 u_matrix;
+
+void main() {
+
+  // 先归一化后旋转(先归一化后旋转似乎会出现变形的问题)
+  vec2 zeroToOne = a_position / u_resolution;
+  vec2 clipSpace = ( 2.0 * zeroToOne - 1.0 ) * vec2(1, -1);
+  vec2 position = (u_matrix * vec3(clipSpace, 1)).xy;
+  gl_Position = vec4(position, 0, 1);
+
+  // 先旋转后归一化
+  // vec2 position = (u_matrix * vec3(a_position, 1)).xy;
+  // vec2 zeroToOne = position / u_resolution;
+  // vec2 zeroToTwo = zeroToOne * 2.0;
+  // vec2 clipSpace = zeroToTwo - 1.0;
+  // gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+}
+</script>
+<script  id="vertex-shader-2d-inclip" type="x-shader/x-vertex">#version 300 es
+
+in vec2 a_position;
+
+uniform vec2 u_resolution;
+uniform mat3 u_matrix;
+
+void main() {
+  vec2 position = (u_matrix * vec3(a_position, 1)).xy;
+
+  vec2 zeroToOne = position / u_resolution;
+
+  vec2 zeroToTwo = zeroToOne * 2.0;
+
+  vec2 clipSpace = zeroToTwo - 1.0;
+
+  gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+}
+</script>
+<script  id="fragment-shader-2d" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+
+uniform vec4 u_color;
+
+out vec4 outColor;
+
+void main() {
+  outColor = u_color;
+}
+
+</script>
+<script>
+
+    function createGLSLProgram( gl, vertexCodeDomID, fragmentCodeDomID ) {
+        let vertexShaderSource = document.querySelector("#" + vertexCodeDomID).text;
+        let fragmentShaderSource = document.querySelector("#" + fragmentCodeDomID).text;
+        return webglUtils.createProgramFromSources( gl, [vertexShaderSource, fragmentShaderSource] )
+    }
+
+    function main() {
+        // Get A WebGL context
+        /** @type {HTMLCanvasElement} */
+        let canvas = document.querySelector("#canvas");
+        let gl = canvas.getContext("webgl2");
+        if (!gl) {
+            return;
+        }
+
+        // Use our boilerplate utils to compile the shaders and link into a program
+        let program = createGLSLProgram( gl, "vertex-shader-2d-inscreen", "fragment-shader-2d" );
+
+        // look up where the vertex data needs to go.
+        let positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+
+        // look up uniform locations
+        let resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution");
+        let colorLocation = gl.getUniformLocation(program, "u_color");
+        let matrixLocation = gl.getUniformLocation(program, "u_matrix");
+
+        // Create a buffer
+        let positionBuffer = gl.createBuffer();
+
+        // Create a vertex array object (attribute state)
+        let vao = gl.createVertexArray();
+
+        // and make it the one we're currently working with
+        gl.bindVertexArray(vao);
+
+        // Turn on the attribute
+        gl.enableVertexAttribArray(positionAttributeLocation);
+
+        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        // Set Geometry.
+        setGeometry(gl);
+
+        // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+        let size = 2;          // 2 components per iteration
+        let type = gl.FLOAT;   // the data is 32bit floats
+        let normalize = false; // don't normalize the data
+        let stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+        let offset = 0;        // start at the beginning of the buffer
+        gl.vertexAttribPointer(
+            positionAttributeLocation, size, type, normalize, stride, offset);
+
+        // First let's make some variables
+        // to hold the translation,
+        let rotationInRadians = 0;
+        let color = [Math.random(), Math.random(), Math.random(), 1];
+
+        drawScene();
+
+        // Setup a ui.
+        webglLessonsUI.setupSlider("#angle",  {value: rotationInRadians * 180 / Math.PI | 0, slide: updateAngle, max: 360});
+
+        function updateAngle(event, ui) {
+            rotationInRadians = ui.value * Math.PI / 180;
+            drawScene();
+        }
+
+        // Draw the scene.
+        function drawScene() {
+            webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+            // Tell WebGL how to convert from clip space to pixels
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+            // Clear the canvas
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            // Tell it to use our program (pair of shaders)
+            gl.useProgram(program);
+
+            // Bind the attribute/buffer set we want.
+            gl.bindVertexArray(vao);
+
+            // Pass in the canvas resolution so we can convert from
+            // pixels to clipspace in the shader
+            gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
+
+            // Set the color.
+            gl.uniform4fv(colorLocation, color);
+
+            // Compute the matrices
+            let rotationMatrix = rotation(rotationInRadians);
+            gl.uniformMatrix3fv(matrixLocation, false, rotationMatrix);
+
+            // Draw the geometry.
+            let primitiveType = gl.TRIANGLES;
+            let offset = 0;
+            let count = 6;
+            gl.drawArrays(primitiveType, offset, count);
+        }
+    }
+
+    function setGeometry(gl) {
+        gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array([
+                // top rung
+                30 + 100, 0 + 200,
+                100+ 100, 0 + 200,
+                30 + 100, 30+ 200,
+                30 + 100, 30+ 200,
+                100+ 100, 0 + 200,
+                100+ 100, 30+ 200,
+            ]),
+            gl.STATIC_DRAW);
+    }
+    function fGeometry(gl) {
+        gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array([
+                // 竖
+                -0.25, -0.5,
+                0.0,  -0.5,
+                0.0,   0.5,
+                0.0,   0.5,
+                -0.25,  0.5,
+                -0.25, -0.5
+            ]),
+            gl.STATIC_DRAW);
+    }
+
+
+
+    function rotation(angleInRadians) {
+        let c = Math.cos(angleInRadians);
+        let s = Math.sin(angleInRadians);
+        return [
+            c, -s, 0,
+            s, c, 0,
+            0, 0, 1,
+        ];
+    }
+
+    main();
+</script>
+</body>
+</html>

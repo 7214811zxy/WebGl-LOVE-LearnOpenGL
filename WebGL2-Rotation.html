@@ -42,9 +42,16 @@
 in vec3 a_position;
 uniform vec2 u_resolution;
 uniform mat3 u_rotationMatrix;
+uniform float u_angle;
+
+mat2 rotate3d(float angle){
+    return mat2( cos(angle), -sin(angle),
+                 sin(angle), cos(angle));
+}
 
 void main() {
-    gl_Position = vec4( u_rotationMatrix * a_position, 1.0);
+    // gl_Position = vec4( u_rotationMatrix * a_position, 1.0);
+    gl_Position = vec4( rotate3d(u_angle) * a_position.xy, 1.0, 1.0);
 }
 </script>
 <script  id="fragment-shader-2d" type="x-shader/x-fragment">#version 300 es
@@ -138,6 +145,7 @@ void main() {
         let resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution");
         let colorLocation = gl.getUniformLocation(program, "u_color");
         let rotationMatrixLocation = gl.getUniformLocation(program, "u_rotationMatrix");
+        let angleLocation = gl.getUniformLocation(program, "u_angle");
 
         // 创建VBO和VAO
         let positionBuffer = gl.createBuffer();
@@ -154,7 +162,7 @@ void main() {
         // 注意！Shader中似乎是按列读入矩阵数据的，即v = [x, y, z]在shader中表示列向量
         //
         //   | 1, 2, 3, |                               | 1, 4, 7, |
-        //   | 4, 5, 6, |   在读入Shader中实际被解析为   | 2, 5, 8, |
+        //   | 4, 5, 6, |   在读入Shader中实际被解析为    | 2, 5, 8, |
         //   | 7, 8, 9  |                               | 3, 6, 9, |
         //
         let matrix = [
@@ -182,8 +190,9 @@ void main() {
 
             // 设定Uniform
             gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
+            gl.uniform1f(angleLocation, angle);
             gl.uniform4fv(colorLocation, color);
-            gl.uniformMatrix3fv( rotationMatrixLocation, false, matrix );
+            // gl.uniformMatrix3fv( rotationMatrixLocation, false, matrix );
 
             // 绘制几何.
             let primitiveType = gl.TRIANGLES;
@@ -193,19 +202,25 @@ void main() {
         }
         // 设置UI.
         webglLessonsUI.setupSlider("#angle", {value: angle, slide: updateRotation(), min: 0, max: 360 });
+        // function updateRotation() {
+        //     return function(event, ui) {
+        //         let rad = ( ui.value / 180.0 ) * Math.PI;
+        //         matrix = [
+        //              Math.cos(rad),      Math.sin(rad),  0.0,
+        //             -Math.sin(rad),      Math.cos(rad),  0.0,
+        //              0.0,                0.0,            1.0
+        //         ];
+        //         matrix = transpose( matrix, 3, 3 );
+        //         console.log(matrix);
+        //         drawScene();
+        //     };
+        // }
         function updateRotation() {
-            return function(event, ui) {
-                let rad = ( ui.value / 180.0 ) * Math.PI;
-                matrix = [
-                     Math.cos(rad),      Math.sin(rad), 0.0,
-                    -Math.sin(rad),      Math.cos(rad), 0.0,
-                     0.0,                0.0,           1.0
-                ];
-                matrix = transpose( matrix, 3, 3 );
-                console.log(matrix);
-                drawScene();
-            };
-        }
+                return function(event, ui) {
+                    angle = ( ui.value / 180.0 ) * Math.PI;
+                    drawScene();
+                };
+            }
     }
 
     main();
