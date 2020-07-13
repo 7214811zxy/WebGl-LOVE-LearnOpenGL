@@ -2,22 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>矩阵应用 - 位移</title>
+    <title>矩阵应用 - 缩放</title>
     <style>
+
         body {
             margin: 0;
         }
+
         #container {
             width: 800px;
             height: 600px;
             border: 1px solid black;
         }
+
         .root {
             display: flex;
             width: 100%;
             justify-content: center;
             margin-top: 100px;
         }
+
         .note {
             display: flex;
             width: 100%;
@@ -30,8 +34,8 @@
     <canvas id="container"></canvas>
     <div id="uiContainer" style="margin-left: 10px">
         <div id="ui">
-            <div id="x"></div>
-            <div id="y"></div>
+            <div id="scaleX"></div>
+            <div id="scaleY"></div>
         </div>
     </div>
 </div>
@@ -42,13 +46,13 @@
 
 in vec3 a_position;
 uniform vec2 u_resolution;
-uniform mat3 u_transMatrix;
+uniform mat3 u_scaleMatrix;
 uniform mat3 u_projectionMatrix;
 
 void main() {
 
     // 旋转变换
-    vec3 position = vec3 ( u_transMatrix * a_position );
+    vec3 position = vec3 ( u_scaleMatrix * a_position );
 
     // 投影矩阵
     vec4 clipSpace = vec4 ( u_projectionMatrix * position, 1.0);
@@ -93,7 +97,8 @@ void main() {
         // 设定Uniform
         byt3.gl.uniform2f(byt3.uniforms.resolutionUniformLocation, byt3.gl.canvas.width, byt3.gl.canvas.height);
         byt3.gl.uniform4fv(byt3.uniforms.colorLocation, byt3.cpuMeo.color);
-        byt3.gl.uniformMatrix3fv( byt3.uniforms.transMatrixLocation, false, byt3.cpuMeo.transMatrix );
+        console.log(byt3.cpuMeo.scaleMatrix);
+        byt3.gl.uniformMatrix3fv( byt3.uniforms.scaleMatrixLocation, false, byt3.cpuMeo.scaleMatrix );
         byt3.gl.uniformMatrix3fv( byt3.uniforms.projectMatrixLocation, false, byt3.cpuMeo.projectMatrix );
 
         // 绘制几何.
@@ -109,22 +114,22 @@ void main() {
             return function(event, ui) {
                 let matrix;
                 if( direct === 'x' ){
-                    byt3.cpuMeo.tx = ui.value;
+                    byt3.cpuMeo.sx = ui.value;
                 }
                 if( direct === 'y' ){
-                    byt3.cpuMeo.ty = ui.value;
+                    byt3.cpuMeo.sy = ui.value;
                 }
                 matrix = [
-                    1.0, 0.0, byt3.cpuMeo.tx,
-                    0.0, 1.0, byt3.cpuMeo.ty,
+                    byt3.cpuMeo.sx, 0.0, 0.0,
+                    0.0, byt3.cpuMeo.sy, 0.0,
                     0.0, 0.0, 1.0
                 ];
-                byt3.cpuMeo.transMatrix = jupyter3.transpose( matrix, 3, 3 );
+                byt3.cpuMeo.scaleMatrix = jupyter3.transpose( matrix, 3, 3 );
                 render();
             };
         };
-        webglLessonsUI.setupSlider("#x", {value: byt3.cpuMeo.tx, slide: updateTranslation('x'), min: 0, max: 800 });
-        webglLessonsUI.setupSlider("#y", {value: byt3.cpuMeo.ty, slide: updateTranslation('y'), min: 0, max: 600 });
+        webglLessonsUI.setupSlider("#scaleX", {value: byt3.cpuMeo.sx, slide: updateTranslation('x'), min: -10.0, max: 10.0 });
+        webglLessonsUI.setupSlider("#scaleY", {value: byt3.cpuMeo.sy, slide: updateTranslation('y'), min: -10.0, max: 10.0 });
     }
 
     // 主函数
@@ -141,7 +146,7 @@ void main() {
         // 获取Uniform位置
         byt3.uniforms.resolutionUniformLocation = byt3.gl.getUniformLocation(byt3.program, "u_resolution");
         byt3.uniforms.colorLocation = byt3.gl.getUniformLocation(byt3.program, "u_color");
-        byt3.uniforms.transMatrixLocation = byt3.gl.getUniformLocation(byt3.program, "u_transMatrix");
+        byt3.uniforms.scaleMatrixLocation = byt3.gl.getUniformLocation(byt3.program, "u_scaleMatrix");
         byt3.uniforms.projectMatrixLocation = byt3.gl.getUniformLocation(byt3.program, "u_projectionMatrix");
 
         // 创建VBO和VAO
@@ -157,7 +162,7 @@ void main() {
         byt3.vao.triGeo = vao;
 
         // 声明CPU中的变量
-        byt3.cpuMeo.transMatrix = [
+        byt3.cpuMeo.scaleMatrix = [
             1.0, 0.0, 0.0,
             0.0, 1.0, 0.0,
             0.0, 0.0, 1.0
@@ -169,8 +174,8 @@ void main() {
         ];
         byt3.cpuMeo.projectMatrix = jupyter3.transpose(byt3.cpuMeo.projectMatrix, 3, 3);
         byt3.cpuMeo.color = [Math.random(), Math.random(), Math.random(), 1];
-        byt3.cpuMeo.tx = 0;
-        byt3.cpuMeo.ty = 0;
+        byt3.cpuMeo.sx = 1.0;
+        byt3.cpuMeo.sy = 1.0;
 
         iniUI();
         render();
