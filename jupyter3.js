@@ -72,9 +72,6 @@ export function creatContext( domID ) {
     byt3.gl = gl;
 }
 
-// 获取属性位置
-
-
 // 三角形几何
 export function triGeometry(gl) {
     gl.bufferData(
@@ -85,4 +82,165 @@ export function triGeometry(gl) {
             400.0, 300.0, 1.0
         ]),
         gl.STATIC_DRAW);
+}
+// 创建三角几何
+export function createTri(gl) {
+    let positionBuffer = gl.createBuffer();
+    let vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+
+    gl.bindBuffer(byt3.gl.ARRAY_BUFFER, positionBuffer);
+    triGeometry(gl);
+    gl.enableVertexAttribArray( byt3.attributes.positionAttributeLocation );
+    gl.vertexAttribPointer( byt3.attributes.positionAttributeLocation, 3, byt3.gl.FLOAT, false, 0, 0);
+    vao.count = 6;
+    return vao;
+}
+// 创建三角3D几何
+export function createTri3D(gl) {
+
+    // 创建VAO
+    let vao = gl.createVertexArray();
+
+    // 创建几何VBO
+    let positionBuffer = gl.createBuffer();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(byt3.gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData( gl.ARRAY_BUFFER,  new Float32Array([
+            // 正面
+            200, 0,   0,
+            400, 300, 0,
+            0,   300, 0,
+
+            // 背面
+            200, 0,   -100,
+            0,   300, -100,
+            400, 300, -100,
+
+            // 侧边1
+            200, 0, 0,
+            200, 0, -100,
+            400, 300, 0,
+
+            400, 300, 0,
+            200, 0, -100,
+            400, 300, -100,
+
+            // 侧边2
+            400, 300, 0,
+            400, 300, -100,
+            0, 300, -100,
+
+            0, 300, -100,
+            0, 300, 0,
+            400, 300, 0,
+
+            // 侧边3
+            0, 300, 0,
+            0, 300, -100,
+            200, 0, -100,
+
+            200, 0, -100,
+            200, 0, 0,
+            0, 300, 0
+        ]), gl.STATIC_DRAW);
+
+    let posLocation = byt3.gl.getAttribLocation(byt3.program, "a_position");
+    gl.enableVertexAttribArray( posLocation );
+    gl.vertexAttribPointer( posLocation, 3, byt3.gl.FLOAT, false, 0, 0);
+
+    // 创建颜色VBO
+    let colorBuffer = gl.createBuffer();
+    gl.bindBuffer(byt3.gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData( gl.ARRAY_BUFFER,  new Uint8Array([
+        // 正面
+        200,  70, 120,
+        200,  70, 120,
+        200,  70, 120,
+
+        // 背面
+        80, 70, 200, // 紫色
+        80, 70, 200,
+        80, 70, 200,
+
+        // 侧边1
+        160, 160, 220,
+        160, 160, 220,
+        160, 160, 220,
+
+        160, 160, 220,
+        160, 160, 220,
+        160, 160, 220,
+
+        // 侧边2
+        90, 130, 110,
+        90, 130, 110,
+        90, 130, 110,
+
+        90, 130, 110,
+        90, 130, 110,
+        90, 130, 110,
+
+        // 侧边3
+        140, 210, 80,
+        140, 210, 80,
+        140, 210, 80,
+
+        140, 210, 80,
+        140, 210, 80,
+        140, 210, 80
+    ]), gl.STATIC_DRAW);
+
+    let colorLocation = byt3.gl.getAttribLocation(byt3.program, "a_color");
+    gl.enableVertexAttribArray( colorLocation );
+    gl.vertexAttribPointer( colorLocation, 3, gl.UNSIGNED_BYTE, true, 0, 0);
+
+    vao.count = 24;
+
+    return vao;
+}
+
+// 字母F几何
+export function fGeometry(gl) {
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+            // 竖
+            0,   0, 1.0,
+            30,  0, 1.0,
+            0, 150, 1.0,
+            0, 150, 1.0,
+            30,  0, 1.0,
+            30,150, 1.0,
+
+            // 长横
+            30,  0, 1.0,
+            100, 0, 1.0,
+            30, 30, 1.0,
+            30, 30, 1.0,
+            100, 0, 1.0,
+            100,30, 1.0,
+
+            // 短横
+            30, 60, 1.0,
+            67, 60, 1.0,
+            30, 90, 1.0,
+            30, 90, 1.0,
+            67, 60, 1.0,
+            67, 90, 1.0
+        ]),
+        gl.STATIC_DRAW);
+}
+// 创建字母几何
+export function createLetterF(gl) {
+    let positionBuffer = gl.createBuffer();
+    let vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+
+    gl.bindBuffer(byt3.gl.ARRAY_BUFFER, positionBuffer);
+    fGeometry(gl);
+    gl.enableVertexAttribArray( byt3.attributes.positionAttributeLocation );
+    gl.vertexAttribPointer( byt3.attributes.positionAttributeLocation, 3, byt3.gl.FLOAT, false, 0, 0);
+    vao.count = 18;
+    return vao;
 }

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>矩阵应用 - 变形</title>
+    <style>
+        body {
+            margin: 0;
+        }
+        #container {
+            width: 800px;
+            height: 600px;
+            border: 1px solid black;
+        }
+        .root {
+            display: flex;
+            width: 100%;
+            justify-content: center;
+            margin-top: 100px;
+        }
+        .note {
+            display: flex;
+            width: 100%;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+<div class="root">
+    <canvas id="container"></canvas>
+    <div id="uiContainer" style="margin-left: 10px">
+        <div id="ui">
+            <div id="rotationX"></div>
+            <div id="rotationY"></div>
+            <div id="rotationZ"></div>
+            <div id="x"></div>
+            <div id="y"></div>
+            <div id="z"></div>
+            <div id="scaleX"></div>
+            <div id="scaleY"></div>
+            <div id="scaleZ"></div>
+            <div id="originX"></div>
+            <div id="originY"></div>
+            <div id="originZ"></div>
+        </div>
+    </div>
+</div>
+<div class="note"></div>
+<script src="webgl-utils.js"></script>
+<script src="webgl-ui.js"></script>
+<script src="math.js"></script>
+<script  id="vertex-shader-2d" type="x-shader/x-vertex">#version 300 es
+
+in vec4 a_position;
+in vec4 a_color;
+uniform mat4 u_transformMatrix;
+
+out vec4 v_color;
+
+void main() {
+    gl_Position = u_transformMatrix * a_position;
+    v_color = a_color;
+
+}
+</script>
+<script  id="fragment-shader-2d" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+in vec4 v_color;
+
+out vec4 outColor;
+
+void main() {
+    outColor = v_color;
+}
+
+</script>
+<script type="module">
+    import * as jupyter3 from "./jupyter3.js"
+
+    window.byt3 = {
+        gl: null,
+        attributes: {},
+        uniforms: {},
+        cpuMeo: {}
+    };
+
+    // 绘制场景
+    function render() {
+        webglUtils.resizeCanvasToDisplaySize(byt3.gl.canvas);
+
+        // 清屏 设置分辨率 调用程序
+        byt3.gl.viewport(0, 0, byt3.gl.canvas.width, byt3.gl.canvas.height);
+        byt3.gl.clearColor(0, 0, 0, 0);
+        byt3.gl.clear(byt3.gl.COLOR_BUFFER_BIT | byt3.gl.DEPTH_BUFFER_BIT);
+        byt3.gl.useProgram(byt3.program);
+
+        // 不绘制背面的三角
+        byt3.gl.enable(byt3.gl.CULL_FACE);
+        // 开启深度检测
+        byt3.gl.enable(byt3.gl.DEPTH_TEST);
+
+        // 绑定VAO
+        byt3.gl.bindVertexArray(byt3.vao);
+
+        // 计算变换和投影矩阵
+        let matrix = byt3.transform.trans(math.identity(4,4), byt3.cpuMeo.origin[0], byt3.cpuMeo.origin[1], byt3.cpuMeo.origin[2]);
+        matrix = byt3.transform.scale( matrix, byt3.cpuMeo.scale[0], byt3.cpuMeo.scale[1], byt3.cpuMeo.scale[2] );
+        matrix = byt3.transform.rotationX( matrix, byt3.cpuMeo.angle[0] );
+        matrix = byt3.transform.rotationY( matrix, byt3.cpuMeo.angle[1] );
+        matrix = byt3.transform.rotationZ( matrix, byt3.cpuMeo.angle[2] );
+        matrix = byt3.transform.trans( matrix, byt3.cpuMeo.trans[0], byt3.cpuMeo.trans[1], byt3.cpuMeo.trans[2] );
+        matrix = byt3.transform.projection( matrix, byt3.gl.canvas.clientWidth, byt3.gl.canvas.clientHeight, 2000 );
+        byt3.cpuMeo.transformMatrix = math.transpose(matrix);
+
+        // 设定Uniform
+        byt3.gl.uniformMatrix4fv( byt3.uniforms.transformMatrixLocation, false, math.flatten(byt3.cpuMeo.transformMatrix).toArray() );
+
+        // 绘制几何.
+        let primitiveType = byt3.gl.TRIANGLES;
+        let offset = 0;
+        byt3.gl.drawArrays(primitiveType, offset, byt3.vao.count);
+    }
+
+    // 设置UI.
+    function iniUI(){
+        let transform = ( axis ) => {
+            return function(event, ui) {
+                byt3.cpuMeo.trans[axis] = ui.value;
+                render();
+            };
+        };
+        let scale = ( axis ) => {
+            return function(event, ui) {
+                byt3.cpuMeo.scale[axis] = ui.value;
+                render();
+            };
+        };
+        let rotation = ( axis ) => {
+            return function( event, ui ) {
+                byt3.cpuMeo.angle[axis] = ui.value;
+                render();
+            };
+        };
+        let moveOrigin = ( axis ) => {
+            return function(event, ui) {
+                byt3.cpuMeo.origin[axis] = ui.value;
+                render();
+            };
+        };
+        webglLessonsUI.setupSlider("#rotationX", {value: byt3.cpuMeo.angle[0], slide: rotation(0), min: 0, max: 360 });
+        webglLessonsUI.setupSlider("#rotationY", {value: byt3.cpuMeo.angle[1], slide: rotation(1), min: 0, max: 360 });
+        webglLessonsUI.setupSlider("#rotationZ", {value: byt3.cpuMeo.angle[2], slide: rotation(2), min: 0, max: 360 });
+        webglLessonsUI.setupSlider("#x", {value: byt3.cpuMeo.trans[0], slide: transform(0), min: 0, max: 800, step: 1 });
+        webglLessonsUI.setupSlider("#y", {value: byt3.cpuMeo.trans[1], slide: transform(1), min: 0, max: 600, step: 1 });
+        webglLessonsUI.setupSlider("#z", {value: byt3.cpuMeo.trans[2], slide: transform(2), min: 0, max: 600, step: 1 });
+        webglLessonsUI.setupSlider("#scaleX", {value: byt3.cpuMeo.scale[0], slide: scale(0), min: -2.0, max: 2.0, step: 0.01, precision: 2});
+        webglLessonsUI.setupSlider("#scaleY", {value: byt3.cpuMeo.scale[1], slide: scale(1), min: -2.0, max: 2.0, step: 0.01, precision: 2});
+        webglLessonsUI.setupSlider("#scaleZ", {value: byt3.cpuMeo.scale[2], slide: scale(2), min: -2.0, max: 2.0, step: 0.01, precision: 2});
+        webglLessonsUI.setupSlider("#originX", {value: byt3.cpuMeo.origin[0], slide: moveOrigin(0), min: -400, max: 400, step: 1 });
+        webglLessonsUI.setupSlider("#originY", {value: byt3.cpuMeo.origin[1], slide: moveOrigin(1), min: -300, max: 300, step: 1 });
+        webglLessonsUI.setupSlider("#originZ", {value: byt3.cpuMeo.origin[2], slide: moveOrigin(2), min: -300, max: 300, step: 1 });
+    }
+
+    // 主函数
+    function main() {
+
+        // 创建GL上下文
+        jupyter3.creatContext('container');
+
+        // 创建GLSL程序
+        byt3.program = jupyter3.createProgram( byt3.gl, "vertex-shader-2d", "fragment-shader-2d" );
+
+        // 获取Uniform位置
+        byt3.uniforms.transformMatrixLocation = byt3.gl.getUniformLocation(byt3.program, "u_transformMatrix");
+
+        // 创建VAO
+        byt3.vao = jupyter3.createTri3D(byt3.gl);
+
+        // 声明CPU中的变量
+        byt3.cpuMeo.trans =  [0.0, 0.0, 0.0];
+        byt3.cpuMeo.scale =  [1.0, 1.0, 1.0];
+        byt3.cpuMeo.origin = [0.0, 0.0, 0.0];
+        byt3.cpuMeo.angle =  [0.0, 0.0, 0.0];
+
+        byt3.transform = {
+
+            trans: function ( matrix, tx, ty, tz ) {
+                let transMatrix = math.matrix([
+                    [1.0,  0.0,  0.0, tx ],
+                    [0.0,  1.0,  0.0, ty ],
+                    [0.0,  0.0,  1.0, tz ],
+                    [0.0,  0.0,  0.0, 1.0]
+
+                ]);
+                return math.multiply( transMatrix, matrix )
+            },
+
+            scale: function ( matrix, sx, sy, sz ) {
+                let scaleMatrix = math.matrix([
+                    [sx,  0.0,  0.0, 0.0],
+                    [0.0,  sy,  0.0, 0.0],
+                    [0.0, 0.0,  sz,  0.0],
+                    [0.0, 0.0,  0.0, 1.0],
+                ]);
+                return math.multiply( scaleMatrix, matrix )
+            },
+
+            rotationX: function ( matrix, angle ) {
+                let rad = ( angle / 180.0 ) * Math.PI;
+                let sin = Math.sin(rad);
+                let cos = Math.cos(rad);
+                let rotationMatrix = math.matrix([
+                    [1.0,  0.0,  0.0,  0.0],
+                    [0.0,  cos,  -sin,  0.0],
+                    [0.0,  sin,  cos,  0.0],
+                    [0.0,  0.0,  0.0,  1.0]
+                ]);
+                return math.multiply( rotationMatrix, matrix )
+            },
+
+            rotationY: function ( matrix, angle ) {
+                let rad = ( angle / 180.0 ) * Math.PI;
+                let sin = Math.sin(rad);
+                let cos = Math.cos(rad);
+                let rotationMatrix = math.matrix([
+                    [cos,  0.0,  -sin,  0.0],
+                    [0.0,  1.0,  0.0,  0.0],
+                    [sin,  0.0,  cos,  0.0],
+                    [0.0,  0.0,  0.0,  1.0]
+                ]);
+                return math.multiply( rotationMatrix, matrix )
+            },
+
+            rotationZ: function ( matrix, angle ) {
+                let rad = ( angle / 180.0 ) * Math.PI;
+                let sin = Math.sin(rad);
+                let cos = Math.cos(rad);
+                let rotationMatrix = math.matrix([
+                    [cos,  -sin,  0.0, 0.0],
+                    [sin,  cos,  0.0,  0.0],
+                    [0.0,  0.0,  1.0,  0.0],
+                    [0.0,  0.0,  0.0,  1.0]
+                ]);
+                return math.multiply( rotationMatrix, matrix )
+            },
+
+            projection: function ( matrix, width, height, depth ) {
+                let projectMatrix = math.matrix([
+                    [ 2.0/width,   0.0,   0.0,         -1.0],
+                    [ 0.0, -2.0/height,   0.0,          1.0],
+                    [ 0.0,         0.0,   2.0/depth,    0.0], // 注意Z方向的归一化不用-1
+                    [ 0.0,         0.0,   0.0,          1.0]
+                ]);
+                return math.multiply(projectMatrix, matrix)
+
+            }
+
+        };
+
+        render();
+        iniUI();
+    }
+
+    main();
+</script>
+</body>
+</html>

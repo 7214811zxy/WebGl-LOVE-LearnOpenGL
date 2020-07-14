@@ -35,6 +35,8 @@
             <div id="y"></div>
             <div id="scaleX"></div>
             <div id="scaleY"></div>
+            <div id="originX"></div>
+            <div id="originY"></div>
         </div>
     </div>
 </div>
@@ -45,7 +47,6 @@
 <script  id="vertex-shader-2d" type="x-shader/x-vertex">#version 300 es
 
 in vec3 a_position;
-uniform vec2 u_resolution;
 uniform mat3 u_transformMatrix;
 uniform mat3 u_projectionMatrix;
 
@@ -92,10 +93,22 @@ void main() {
         byt3.gl.useProgram(byt3.program);
 
         // 绑定VAO
-        byt3.gl.bindVertexArray(byt3.vao.triGeo);
+        byt3.gl.bindVertexArray(byt3.vao.geo);
+
+        // 计算Uniform
+        // 变换矩阵位置 T * R * S * TO * Position
+        let matrix = byt3.transform.setTrans(math.identity(3,3), byt3.cpuMeo.origin[0], byt3.cpuMeo.origin[1]);
+        matrix = byt3.transform.setScale( matrix, byt3.cpuMeo.scale[0], byt3.cpuMeo.scale[1] );
+        matrix = byt3.transform.setRotation( matrix, byt3.cpuMeo.angle );
+        matrix = byt3.transform.setTrans( matrix, byt3.cpuMeo.trans[0], byt3.cpuMeo.trans[1] );
+        byt3.cpuMeo.transformMatrix = math.transpose(matrix); // 变换矩阵
+        byt3.cpuMeo.projectMatrix = math.transpose(math.matrix([
+            [2.0/byt3.gl.canvas.clientWidth,        0.0,    -1.0],
+            [0.0,   -2.0/byt3.gl.canvas.clientHeight,        1.0],
+            [0.0,                                   0.0,     1.0]
+        ])); // 投影矩阵
 
         // 设定Uniform
-        byt3.gl.uniform2f(byt3.uniforms.resolutionUniformLocation, byt3.gl.canvas.width, byt3.gl.canvas.height);
         byt3.gl.uniform4fv(byt3.uniforms.colorLocation, byt3.cpuMeo.color);
         byt3.gl.uniformMatrix3fv( byt3.uniforms.transformMatrixLocation, false, math.flatten(byt3.cpuMeo.transformMatrix).toArray() );
         byt3.gl.uniformMatrix3fv( byt3.uniforms.projectMatrixLocation, false, math.flatten(byt3.cpuMeo.projectMatrix).toArray() );
@@ -103,65 +116,42 @@ void main() {
         // 绘制几何.
         let primitiveType = byt3.gl.TRIANGLES;
         let offset = 0;
-        let count = 3;
-        byt3.gl.drawArrays(primitiveType, offset, count);
+        byt3.gl.drawArrays(primitiveType, offset, byt3.vao.geo.count);
     }
 
     // 设置UI.
     function iniUI(){
-        let updateTransform = ( type ) => {
+        let transform = ( axis ) => {
             return function(event, ui) {
-                if( type === 'angle' ){
-                    let rad = ( ui.value / 180.0 ) * Math.PI;
-                    byt3.cpuMeo.rotationMatrix = math.matrix([
-                        [Math.cos(rad),      -Math.sin(rad),  0.0],
-                        [Math.sin(rad),       Math.cos(rad),  0.0],
-                        [0.0,                0.0,            1.0]
-                    ]);
-                }
-                if( type === 'tx' || type === 'ty' ){
-                    if( type === 'tx' ){
-                        byt3.cpuMeo.tx = ui.value;
-                    }
-                    if( type === 'ty' ){
-                        byt3.cpuMeo.ty = ui.value;
-                    }
-                    byt3.cpuMeo.transMatrix = math.matrix([
-                        [1.0, 0.0, byt3.cpuMeo.tx],
-                        [0.0, 1.0, byt3.cpuMeo.ty],
-                        [0.0, 0.0, 1.0]
-                    ]);
-                }
-                if( type === 'sx' || type === 'sy' ){
-                    if( type === 'sx' ){
-                        byt3.cpuMeo.sx = ui.value;
-                    }
-                    if( type === 'sy' ){
-                        byt3.cpuMeo.sy = ui.value;
-                    }
-                    byt3.cpuMeo.scaleMatrix = math.matrix([
-                        [byt3.cpuMeo.sx, 0.0,                0.0],
-                        [0.0,            byt3.cpuMeo.sy,     0.0],
-                        [0.0,            0.0,                1.0]
-                    ]);
-                }
-
-                // math库测试
-                let originTrans =  math.matrix([[1.0, 0.0, -200.0], [0.0, 1.0, -150.0], [0.0, 0.0, 1.0]]);
-                let matrix = math.multiply(byt3.cpuMeo.rotationMatrix, byt3.cpuMeo.scaleMatrix);
-                matrix = math.multiply(byt3.cpuMeo.transMatrix, matrix);
-                matrix = math.multiply(matrix, originTrans);
-                matrix = math.transpose(matrix);
-
-                byt3.cpuMeo.transformMatrix = matrix;
+                byt3.cpuMeo.trans[axis] = ui.value;
                 render();
             };
         };
-        webglLessonsUI.setupSlider("#angle", {value: byt3.cpuMeo.angle, slide: updateTransform( 'angle' ), min: 0, max: 360 });
-        webglLessonsUI.setupSlider("#x", {value: byt3.cpuMeo.tx, slide: updateTransform( 'tx' ), min: 0, max: 800, step: 1 });
-        webglLessonsUI.setupSlider("#y", {value: byt3.cpuMeo.ty, slide: updateTransform( 'ty' ), min: 0, max: 600, step: 1 });
-        webglLessonsUI.setupSlider("#scaleX", {value: byt3.cpuMeo.sx, slide: updateTransform( 'sx' ), min: 0.0, max: 2.0, step: 0.01, precision: 2});
-        webglLessonsUI.setupSlider("#scaleY", {value: byt3.cpuMeo.sy, slide: updateTransform( 'sy' ), min: 0.0, max: 2.0, step: 0.01, precision: 2});
+        let scale = ( axis ) => {
+            return function(event, ui) {
+                byt3.cpuMeo.scale[axis] = ui.value;
+                render();
+            };
+        };
+        let rotation = () => {
+            return function( event, ui ) {
+                byt3.cpuMeo.angle = ui.value;
+                render();
+            };
+        };
+        let moveOrigin = ( axis ) => {
+            return function(event, ui) {
+                byt3.cpuMeo.origin[axis] = ui.value;
+                render();
+            };
+        };
+        webglLessonsUI.setupSlider("#angle", {value: byt3.cpuMeo.angle, slide: rotation(), min: 0, max: 360 });
+        webglLessonsUI.setupSlider("#x", {value: byt3.cpuMeo.trans[0], slide: transform(0), min: 0, max: 800, step: 1 });
+        webglLessonsUI.setupSlider("#y", {value: byt3.cpuMeo.trans[1], slide: transform(1), min: 0, max: 600, step: 1 });
+        webglLessonsUI.setupSlider("#scaleX", {value: byt3.cpuMeo.scale[0], slide: scale(0), min: -2.0, max: 2.0, step: 0.01, precision: 2});
+        webglLessonsUI.setupSlider("#scaleY", {value: byt3.cpuMeo.scale[1], slide: scale(1), min: -2.0, max: 2.0, step: 0.01, precision: 2});
+        webglLessonsUI.setupSlider("#originX", {value: byt3.cpuMeo.origin[0], slide: moveOrigin(0), min: -400, max: 400, step: 1 });
+        webglLessonsUI.setupSlider("#originY", {value: byt3.cpuMeo.origin[1], slide: moveOrigin(1), min: -300, max: 300, step: 1 });
     }
 
     // 主函数
@@ -177,49 +167,57 @@ void main() {
         byt3.attributes.positionAttributeLocation = byt3.gl.getAttribLocation(byt3.program, "a_position");
 
         // 获取Uniform位置
-        // 分辨率
-        byt3.uniforms.resolutionUniformLocation = byt3.gl.getUniformLocation(byt3.program, "u_resolution");
-        // 颜色
         byt3.uniforms.colorLocation = byt3.gl.getUniformLocation(byt3.program, "u_color");
-        // 变换
         byt3.uniforms.transformMatrixLocation = byt3.gl.getUniformLocation(byt3.program, "u_transformMatrix");
-        // 投影矩阵
         byt3.uniforms.projectMatrixLocation = byt3.gl.getUniformLocation(byt3.program, "u_projectionMatrix");
 
-        // 创建VBO和VAO
-        let positionBuffer = byt3.gl.createBuffer();
-        let vao = byt3.gl.createVertexArray();
-        byt3.gl.bindVertexArray(vao);
-
-        // 配置VBO和VAO
-        byt3.gl.bindBuffer(byt3.gl.ARRAY_BUFFER, positionBuffer);
-        jupyter3.triGeometry(byt3.gl);
-        byt3.gl.enableVertexAttribArray( byt3.attributes.positionAttributeLocation );
-        byt3.gl.vertexAttribPointer( byt3.attributes.positionAttributeLocation, 3, byt3.gl.FLOAT, false, 0, 0);
-        byt3.vao.triGeo = vao;
+        // 创建VAO
+        byt3.vao.geo = jupyter3.createLetterF(byt3.gl);
 
         // 声明CPU中的变量
         // 变形矩阵3兄弟
-        byt3.cpuMeo.transformMatrix = math.identity(3,3);
-        byt3.cpuMeo.transMatrix = math.identity(3,3);
-        byt3.cpuMeo.scaleMatrix = math.identity(3,3);
-        byt3.cpuMeo.rotationMatrix = math.identity(3,3);
-        byt3.cpuMeo.sx = 1.0;
-        byt3.cpuMeo.sy = 1.0;
-        byt3.cpuMeo.tx = 0.0;
-        byt3.cpuMeo.ty = 0.0;
-        byt3.cpuMeo.angle = 0;
+        byt3.cpuMeo.trans =  [0.0, 0.0];
+        byt3.cpuMeo.scale =  [1.0, 1.0];
+        byt3.cpuMeo.origin = [0.0, 0.0];
+        byt3.cpuMeo.angle = 0.0;
 
         byt3.cpuMeo.color = [Math.random(), Math.random(), Math.random(), 1];
-        byt3.cpuMeo.projectMatrix = math.transpose(math.matrix([
-                [2.0/800,        0.0,    -1.0],
-                [0.0,   -2.0/600,     1.0],
-                [0.0,        0.0,     1.0]
-        ]));
+
+        byt3.transform = {
+
+            setTrans: function ( matrix, tx, ty ) {
+                let transMatrix = math.matrix([
+                    [1.0,  0.0,  tx ],
+                    [0.0,  1.0,  ty ],
+                    [0.0,  0.0,  1.0]
+                ]);
+                return math.multiply( transMatrix, matrix )
+            },
+
+            setScale: function ( matrix, sx, sy ) {
+                let scaleMatrix = math.matrix([
+                    [sx,  0.0,  0.0],
+                    [0.0,  sy,  0.0],
+                    [0.0, 0.0,  1.0]
+                ]);
+                return math.multiply( scaleMatrix, matrix )
+            },
+
+            setRotation: function ( matrix, angle ) {
+                let rad = ( angle / 180.0 ) * Math.PI;
+                let sin = Math.sin(rad);
+                let cos = Math.cos(rad);
+                let rotationMatrix = math.matrix([
+                    [cos,  -sin,  0.0],
+                    [sin,   cos,  0.0],
+                    [0.0,   0.0,  1.0]
+                ]);
+                return math.multiply( rotationMatrix, matrix )
+            }
+        };
 
         render();
         iniUI();
-
     }
 
     main();
