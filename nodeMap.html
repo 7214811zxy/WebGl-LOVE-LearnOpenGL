@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>nodeMap</title>
+    <style>
+        body{
+            margin: 0;
+            padding: 0;
+        }
+
+        #container{
+            position: relative;
+            left: 300px;
+            top: 100px;
+            width: 1600px;
+            height: 1000px;
+            border: black 1px solid;
+            background: bisque;
+            overflow: hidden;
+        }
+
+        .tag{
+            position: absolute;
+            width: 100px;
+            height: 20px;
+            background: white;
+            text-align: center;
+            line-height: 20px;
+        }
+
+        #menu{
+            width: 0; /*设置为0 隐藏自定义菜单*/
+            overflow: hidden; /*隐藏溢出的元素*/
+            box-shadow: 0 1px 1px #888,1px 0 1px #ccc;
+            position: absolute; /*自定义菜单相对与body元素进行定位*/
+        }
+        .menu{
+            width: 80px;
+            height: 25px;
+            line-height: 25px;
+            padding: 0 10px;
+        }
+
+    </style>
+</head>
+<body>
+<div id="container" oncontextmenu="show_menu(event)"></div>
+<template id="tag-sample">
+    <div class="tag"></div>
+</template>
+
+<div id="menu">
+    <button class="menu" onclick="createTag(event)">Create</button>
+    <button class="menu" onclick="deleteTag()">Delete</button>
+    <button class="menu" onclick="moveTag()">Move</button>
+    <button class="menu" onclick="close_menu()">Exit</button>
+</div>
+<script>
+
+    let tagNum = 0;
+    let currentTarget = null;
+
+    function cloneTemplate(stdX, stdY, width, height) {
+        let root = document.getElementById('container');
+        let sample = document.getElementById("tag-sample").content.querySelector("div");
+        let sampleClone = document.importNode(sample, true);
+        let {left, top} = getWorldCoordinate(stdX, stdY, width, height);
+        sampleClone.style.left = left + 'px';
+        sampleClone.style.top = top + 'px';
+        // 给克隆的节点挂一个属性
+        sampleClone.tagID = tagNum;
+        sampleClone.innerHTML = tagNum;
+        tagNum += 1;
+        root.appendChild(sampleClone);
+    }
+
+    // 创建一个标签
+    function createTag(event){
+        let root = document.getElementById('container');
+        let x= event.clientX - root.offsetLeft;
+        let y= event.clientY - root.offsetTop;
+        let { stdX, stdY } = getStdCoordinate( x, y, 1600, 1000);
+        cloneTemplate( stdX, stdY, 1600, 1000 );
+        // console.log("X 坐标: " + stdX + ", Y 坐标: " + stdY);
+        close_menu()
+    }
+
+    // 右键显示菜单
+    function show_menu(e){
+
+        let target = e.target;
+        if( target.className === 'tag' ){
+            currentTarget = target;
+        }
+
+        //取消默认的浏览器自带右键 很重要！！
+        e.preventDefault();
+
+        //获取我们自定义的右键菜单
+        let menu=document.querySelector("#menu");
+
+        //根据事件对象中鼠标点击的位置，进行定位
+        menu.style.left=e.clientX+'px';
+        menu.style.top=e.clientY+'px';
+
+        //改变自定义菜单的宽，让它显示出来
+        menu.style.width='80px';
+    }
+
+    // 关闭菜单
+    function close_menu(){
+        document.querySelector('#menu').style.width = '0px';
+    }
+
+    // 移动标签
+    function moveTag() {
+        console.log('ismoving');
+        tagFollowCursor(currentTarget);
+        close_menu();
+        currentTarget = null;
+    }
+
+    // 删除标签
+    function deleteTag() {
+        let root = document.getElementById('container');
+        root.removeChild(currentTarget);
+        currentTarget = null;
+        close_menu();
+    }
+
+    // 标签跟随鼠标
+    function tagFollowCursor(tag) {
+        console.log('tagFollowCursor');
+        let root = document.getElementById('container');
+        window.onmousemove = function tagFollow(event) {
+            let x= event.clientX - root.offsetLeft;
+            let y= event.clientY - root.offsetTop;
+            let { stdX, stdY } = getStdCoordinate( x, y, 1600, 1000);
+            let { left, top } = getWorldCoordinate( stdX, stdY, 1600, 1000 );
+
+            tag.style.left = left + 'px';
+            tag.style.top = top + 'px';
+        };
+    }
+
+    // 得到屏幕坐标
+    function getStdCoordinate( x, y, width, height ) {
+        let stdX = 2 * ( x / width ) - 1;
+        let stdY = -1 * ( 2 * ( y / height ) - 1 );
+        return { stdX, stdY }
+    }
+
+    // 得到世界坐标
+    function getWorldCoordinate( stdX, stdY, width, height ) {
+        let left = ( width * ( stdX + 1 ) ) / 2;
+        let top = ( height * ( -stdY + 1 ) ) / 2;
+        return { left, top }
+    }
+
+    document.getElementById('container').onclick=function(){
+        window.onmousemove = null;
+        console.log('deleteEvent')
+    };
+
+</script>
+</body>
+</html>
