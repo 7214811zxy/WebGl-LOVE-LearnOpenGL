@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>nodeMap</title>
+    <style>
+        .tag{
+            position: absolute;
+            text-align: center;
+            /*background-color: darkgray;*/
+            color: chartreuse;
+            user-select: none;
+        }
+
+        body{
+            margin: 0;
+            padding: 0;
+        }
+
+        /*布局*/
+        .head{
+            width: 100%;
+            height: 100px;
+            background-color: #F0F2F5;
+        }
+        .main{
+            display: flex;
+            width: 100%;
+            height: 86vh;
+        }
+        .main-full{
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            background-color: white;
+        }
+
+        /*svg元素*/
+        .container{
+            position: relative;
+            display: flex;
+            justify-content: center;
+            margin: 0 auto;
+            border: black 1px solid;
+            overflow: hidden;
+            height: 100%;
+        }
+        #bg-svg{
+            height: 100%;
+        }
+
+        /*右键菜单*/
+        #menu{
+            width: 0; /*设置为0 隐藏自定义菜单*/
+            overflow: hidden; /*隐藏溢出的元素*/
+            position: absolute; /*自定义菜单相对与body元素进行定位*/
+        }
+        .menu{
+            width: 80px;
+            height: 25px;
+            line-height: 25px;
+            margin-bottom: 3px;
+            background-color: rgba(31,116,167,0.6);
+            color: white;
+            border: 1px solid white;
+            border-radius: 2px;
+            outline: none;
+        }
+
+    </style>
+</head>
+<body>
+<div class="head"></div>
+<div id="main-container" class="main">
+    <div class="container" oncontextmenu="show_menu(event)">
+        <div id="bg-svg">
+            <img style="height: 100%" src="1-石灰石堆场.svg">
+        </div>
+    </div>
+</div>
+
+<template id="tag-sample">
+    <div class="tag"></div>
+</template>
+
+<div id="menu">
+    <button class="menu" onclick="createTag(event)">Create</button>
+    <button class="menu" onclick="deleteTag()">Delete</button>
+    <button class="menu" onclick="moveTag()">Move</button>
+    <button class="menu" onclick="fullScreen()">FullScreen</button>
+</div>
+
+<script>
+    // screenCoordinate: 屏幕坐标即浏览器左上角为原点
+    // tagCoordinate: 标签坐标，相对于svg左上角的坐标
+
+    let tagID = 0; // 标签ID
+    let currentTarget = null; // 当前选中的标签
+    let isFullScreen = false; // 是否是全屏
+    let svg = document.getElementById('bg-svg'); //svg元素
+
+    svg.onclick=function(){
+        window.onmousemove = null;
+        svg.style.cursor = 'default';
+        close_menu();
+    }; // 清除鼠标跟随事件并且隐藏菜单
+    window.onresize = function () {
+        render()
+    }; // resize时重渲染
+    window.tagsData = {}; // 标签参数
+
+    // 右键显示菜单
+    function show_menu(event){
+
+        // 如果触发事件的target是tag则更新target
+        let target = event.target;
+        if( target.className === 'tag' ){
+            currentTarget = target;
+        }
+
+        //取消默认的浏览器自带右键
+        event.preventDefault();
+
+        let menu=document.querySelector("#menu");
+
+        //根据事件对象中鼠标点击的位置
+        menu.style.left=event.clientX+'px';
+        menu.style.top=event.clientY+'px';
+
+        //改变自定义菜单的宽
+        menu.style.width='80px';
+    }
+
+    // 关闭菜单
+    function close_menu(){
+        document.querySelector('#menu').style.width = '0px';
+    }
+
+    // 创建标签
+    function createTag(event){
+
+        // 计算screenCoordinate
+        let { stdX, stdY } = getStdCoordinate( event );
+
+        // 计算tagCoordinate
+        let { left, top } = getSvgCoordinate( stdX, stdY );
+
+        // 复制标签
+        let sample = document.getElementById("tag-sample").content.querySelector("div");
+        let sampleClone = document.importNode(sample, true);
+        sampleClone.style.left = left + 'px';
+        sampleClone.style.top = top + 'px';
+
+        // 插入标签 设定标签属性
+        sampleClone.tagID = tagID;
+        sampleClone.innerHTML = tagID;
+        svg.appendChild(sampleClone);
+
+        // 更新tagsData
+        tagsData[tagID] = { dom: sampleClone, std: [ stdX, stdY ] };
+
+        // 更新Tag样式
+        scaleTag( sampleClone );
+
+        // 关闭菜单
+        close_menu();
+
+        tagID += 1;
+    }
+
+    // 移动标签
+    function moveTag() {
+        // 鼠标指针变为十字
+        svg.style.cursor = 'crosshair';
+        // 创建onmousemove事件
+        window.onmousemove = function tagFollow(event) {
+            // tag跟随鼠标位置
+            let { stdX, stdY } = getStdCoordinate( event );
+            let { left, top } = getSvgCoordinate( stdX, stdY );
+            currentTarget.style.left = left + 'px';
+            currentTarget.style.top = top + 'px';
+
+            // 更新tagsData中对应的tag的参数
+            let targetID = currentTarget.tagID;
+            tagsData[targetID].std = [ stdX, stdY ];
+        };
+        close_menu();
+    }
+
+    // 删除标签
+    function deleteTag() {
+        svg.removeChild(currentTarget);
+        currentTarget = null;
+        close_menu();
+    }
+
+    // 计算当前mouseEvent在svg内的归一化坐标
+    function getStdCoordinate( event ) {
+
+        // 获取鼠标右键时的screenCoordinate
+        let [ mouseX, mouseY ] = [ event.clientX, event.clientY ];
+
+        // 获取svg的screenCoordinate
+        let svgBoundingBox = svg.getBoundingClientRect();
+        let [ svgBoundX, svgBoundY ] = [ svgBoundingBox.x, svgBoundingBox.y ];
+
+        // 获取svg当前的宽高
+        let [ svgWidth, svgHeight ] = [ svgBoundingBox.width, svgBoundingBox.height ];
+
+        // 计算归一化坐标
+        let stdX = 2 * ( ( mouseX - svgBoundX ) / svgWidth ) - 1;
+        let stdY = -1 * ( 2 * ( ( mouseY - svgBoundY ) / svgHeight ) - 1 );
+        return { stdX, stdY }
+
+    }
+
+    // 将归一化坐标映射为tagCoordinate
+    function getSvgCoordinate( stdX, stdY ) {
+        // 获取svg当前的宽高
+        let svgBoundingBox = svg.getBoundingClientRect();
+        let [ svgWidth, svgHeight ] = [ svgBoundingBox.width, svgBoundingBox.height ];
+        let left = ( svgWidth * ( stdX + 1 ) ) / 2;
+        let top = ( svgHeight * ( -stdY + 1 ) ) / 2;
+        return { left, top }
+    }
+
+    // 重新渲染所有标签
+    function render() {
+        for( let tagID in tagsData ){
+            let dom = tagsData[tagID].dom;
+            let std = tagsData[tagID].std;
+
+            // 计算tagCoordinate
+            let { left, top } = getSvgCoordinate( std[0], std[1] );
+
+            // 重定位
+            dom.style.left = left + 'px';
+            dom.style.top = top + 'px';
+
+            // 重计算缩放比例
+            scaleTag( dom )
+        }
+    }
+
+    // 缩放tag的尺寸
+    function scaleTag( dom ) {
+        let defaultSvgHeight = 800;
+        // let width = 50;
+        // let height = 16;
+        let lineHeight = 16;
+        let fontSize = 16;
+
+        let scale = svg.getBoundingClientRect().height / defaultSvgHeight;
+
+        // dom.style.width = width * scale + 'px';
+        // dom.style.height = height * scale + 'px';
+        dom.style.lineHeight = lineHeight * scale + 'px';
+        dom.style.fontSize = fontSize * scale + 'px';
+    }
+
+    // 全屏
+    function fullScreen() {
+        let root = document.getElementById('main-container');
+        if(isFullScreen){
+            root.className = 'main';
+            isFullScreen = false;
+            render()
+        }else{
+            root.className = 'main-full';
+            isFullScreen = true;
+            render()
+        }
+        close_menu();
+    }
+
+</script>
+</body>
+</html>

@@ -11,10 +11,10 @@
 
         #container{
             position: relative;
-            left: 300px;
-            top: 100px;
-            width: 1600px;
-            height: 1000px;
+            margin: 0 auto;
+            top: 50px;
+            width: 1280px;
+            height: 800px;
             border: black 1px solid;
             background: bisque;
             overflow: hidden;
@@ -80,8 +80,8 @@
         let root = document.getElementById('container');
         let x= event.clientX - root.offsetLeft;
         let y= event.clientY - root.offsetTop;
-        let { stdX, stdY } = getStdCoordinate( x, y, 1600, 1000);
-        cloneTemplate( stdX, stdY, 1600, 1000 );
+        let { stdX, stdY } = getStdCoordinate( x, y, 1280, 800);
+        cloneTemplate( stdX, stdY, 1280, 800 );
         // console.log("X 坐标: " + stdX + ", Y 坐标: " + stdY);
         close_menu()
     }
@@ -136,22 +136,22 @@
         window.onmousemove = function tagFollow(event) {
             let x= event.clientX - root.offsetLeft;
             let y= event.clientY - root.offsetTop;
-            let { stdX, stdY } = getStdCoordinate( x, y, 1600, 1000);
-            let { left, top } = getWorldCoordinate( stdX, stdY, 1600, 1000 );
+            let { stdX, stdY } = getStdCoordinate( x, y, 1280, 800);
+            let { left, top } = getWorldCoordinate( stdX, stdY, 1280, 800 );
 
             tag.style.left = left + 'px';
             tag.style.top = top + 'px';
         };
     }
 
-    // 得到屏幕坐标
+    // 坐标归一化
     function getStdCoordinate( x, y, width, height ) {
         let stdX = 2 * ( x / width ) - 1;
         let stdY = -1 * ( 2 * ( y / height ) - 1 );
         return { stdX, stdY }
     }
 
-    // 得到世界坐标
+    // 坐标反归一化
     function getWorldCoordinate( stdX, stdY, width, height ) {
         let left = ( width * ( stdX + 1 ) ) / 2;
         let top = ( height * ( -stdY + 1 ) ) / 2;
