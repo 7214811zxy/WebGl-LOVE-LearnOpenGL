@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SVG</title>
+    <style>
+        body{
+            margin: 0;
+            padding: 0;
+        }
+        #dcs{
+            position: absolute;
+            width: 1080px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%,-50%) scale(1.2);
+        }
+    </style>
+</head>
+<body>
+<embed id='dcs' type="image/svg+xml" src="1-石灰石堆场.svg"/>
+<script>
+    let rootSvg = null;
+    window.onload = function() {
+
+        let embed = document.getElementById('dcs');
+        let d = embed.getSVGDocument();
+        rootSvg = d.querySelector('svg');
+
+        let text = document.createElementNS("http://www.w3.org/2000/svg", 'text');
+        text.setAttribute('x', '200');
+        text.setAttribute('y', '600');
+        text.setAttribute('fill', '#eeeeee');
+        text.textContent = 'peterZhu';
+        rootSvg.appendChild(text);
+    };
+</script>
+</body>
+</html>
